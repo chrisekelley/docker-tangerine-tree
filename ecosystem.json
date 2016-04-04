@@ -4,9 +4,9 @@
       "name"      : "tree",
       "script"    : "tree/index.js",
       "cwd"        : "./tree/",
-      "error_file" : "../logs/tree-error.log",
-      "out_file"   : "../logs/tree.log",
-      "pid_file"   : "../pids/tree.pid"
+      "error_file" : "tree-error.log",
+      "out_file"   : "tree.log",
+      "pid_file"   : "tree.pid"
     }
   ],
   "deploy" : {
