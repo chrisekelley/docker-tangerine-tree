@@ -60,7 +60,7 @@ RUN npm install $NPM_PROXY -g pm2
 
 # Install jdk7
 # RUN apt-get -y install oracle-java7-installer
-RUN apt-get -y install default-jdk
+RUN apt-get update && apt-get -y install default-jdk
 
 # Install android sdk
 RUN curl http://dl.google.com/android/android-sdk_r24.3.4-linux.tgz > tmp/android-sdk.tgz
