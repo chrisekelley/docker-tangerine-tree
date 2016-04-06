@@ -68,8 +68,8 @@ rawrgv.forEach(function(el, i){
   }
 });
 
+const SOURCE_GROUP = `http://${argv.hostname}:${Settings.T_COUCH_PORT}/group-${argv.group}`;
 
-const SOURCE_GROUP = `http://${Settings.T_COUCH_HOST}:${Settings.T_COUCH_PORT}/group-${argv.group}`;
 let JSON_HEADERS = {
   'Accept'       : 'application/json',
   'Content-Type' : 'application/json'
