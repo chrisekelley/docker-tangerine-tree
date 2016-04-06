@@ -31,7 +31,7 @@ docker login
 ```
 Run the container with environment variables that also has data volumes for couchdb and logs.
 ```
-docker run -d -p 80:80  --name tangerine-tree-container -e "TS_URL=ping.tangerinecentral.org"  -e "T_NEW_ADMIN=freaky"  -e "T_NEW_ADMIN_PASS=password" -e "T_USER1=foo" -e "T_USER1_PASSWORD=bar" -v /var/lib/couchdb -v /var/log tangerine/docker-tangerine-tree
+docker run -d -p 80:80  --name tangerine-tree-container -v /var/log tangerine/docker-tangerine-tree
 ```
 Get into a running container to play around.
 ```

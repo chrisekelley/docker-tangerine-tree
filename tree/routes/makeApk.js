@@ -43,8 +43,9 @@ const notOk = function(output, res, status) {
 const makeApk = function(req, res) {
 
   // assert a group name
-  const group = req.params.group;
-  const emptyGroup = !group || group == ''
+  const groupNameRaw = req.params.group;
+  const hostname = req.params[0];
+  const emptyGroup = !groupNameRaw || groupNameRaw == ''
   if (emptyGroup) {
     return res
       .status(HttpStatus.BAD_REQUEST)
@@ -62,27 +63,28 @@ const makeApk = function(req, res) {
         message : "You're not logged in."
       });
   }
-
-  // assert a valid user within requested group
-  const notAssociated = req.couchAuth.body.userCtx.roles.indexOf(`admin-${group}`) === -1;
-  if (notAssociated) {
-    return res
-      .status(HttpStatus.UNAUTHORIZED)
-      .json({
-        message : "Must be an admin to create APKs."
-      });
-  }
+  //
+  // // assert a valid user within requested group
+  // logger.info("req.couchAuth.body.userCtx.roles: " + JSON.stringify(req.couchAuth.body))
+  // const notAssociated = req.couchAuth.body.userCtx.roles.indexOf(`admin-${groupNameRaw}`) === -1;
+  // if (notAssociated) {
+  //   return res
+  //     .status(HttpStatus.UNAUTHORIZED)
+  //     .json({
+  //       message : "Must be an admin to create APKs."
+  //     });
+  // }
 
 
   // sanitize the group name
-  const groupName = group.replace(/[^a-zA-Z0-9_\-]/,'')
+  const groupName = groupNameRaw.replace(/[^a-zA-Z0-9_\-]/,'')
 
   // make a token
   const token = Token.make();
 
   // load the json packs
   cd(`${__dirname}/../client`);
-  const preload = exec(`npm run treeload --group=${groupName}`);
+  const preload = exec(`npm run treeload --group=${groupName} --hostname=${hostname}`);
   if (notOk(preload, res, HttpStatus.INTERNAL_SERVER_ERROR)) { return; }
 
   // build the apk
