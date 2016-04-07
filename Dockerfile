@@ -85,5 +85,8 @@ RUN dpkg --add-architecture i386 && \
     rm -rf /var/lib/apt/lists/* && \
     apt-get autoremove -y && \
     apt-get clean
+
+RUN /root/Tangerine-tree/tree/server-init.sh
+
 EXPOSE 80
 ENTRYPOINT /root/Tangerine-tree/entrypoint.sh
