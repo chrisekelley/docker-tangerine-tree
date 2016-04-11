@@ -66,5 +66,3 @@ echo pwd = $(pwd)
 sudo npm install
 # workaround for sudo
 sudo npm run postinstall
-echo "USER is $USER"
-sudo chown -R $USER ~
