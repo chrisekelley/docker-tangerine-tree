@@ -83,10 +83,11 @@ fse.ensureDirSync(Conf.PACK_PATH);
 let get = function(url){
   logger.debug(`GET ${url}`);
   return new Promise(function(resolve, reject){
+    console.log("argv.username: " = argv.username);
     unirest.get(url)
       .auth({
-        user: Settings.T_ADMIN,
-        pass: Settings.T_PASS,
+        user: argv.username,
+        pass: argv.password,
         sendImmediately: true
       })
       .headers(JSON_HEADERS)

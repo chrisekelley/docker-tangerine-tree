@@ -45,6 +45,9 @@ const makeApk = function(req, res) {
   // assert a group name
   const groupNameRaw = req.params.group;
   const hostname = req.params[0];
+  const AuthSession = req.body.AuthSession
+  const user = req.body.user
+  console.log("AuthSession: " + AuthSession + " user: " + user);
   const emptyGroup = !groupNameRaw || groupNameRaw == ''
   if (emptyGroup) {
     return res
@@ -84,7 +87,7 @@ const makeApk = function(req, res) {
 
   // load the json packs
   cd(`${__dirname}/../client`);
-  const preload = exec(`npm run treeload --group=${groupName} --hostname=${hostname}`);
+  const preload = exec(`npm run treeload --group=${groupName} --hostname=${hostname} --username=${username} --password=${password}`);
   if (notOk(preload, res, HttpStatus.INTERNAL_SERVER_ERROR)) { return; }
 
   // build the apk
