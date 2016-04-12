@@ -87,7 +87,7 @@ const makeApk = function(req, res) {
 
   // load the json packs
   cd(`${__dirname}/../client`);
-  const preload = exec(`npm run treeload --group=${groupName} --hostname=${hostname} --AuthSession=${AuthSession}`);
+  const preload = exec(`npm run treeload --group=${groupName} --hostname=${hostname} --username=${username} --password=${password}`);
   if (notOk(preload, res, HttpStatus.INTERNAL_SERVER_ERROR)) { return; }
 
   // build the apk
