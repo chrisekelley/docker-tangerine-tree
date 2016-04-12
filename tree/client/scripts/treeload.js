@@ -75,6 +75,12 @@ let JSON_HEADERS = {
   'Content-Type' : 'application/json'
 }
 
+let AUTH_JSON_HEADERS = {
+  'Accept'       : 'application/json',
+  'Content-Type' : 'application/json',
+  'AuthSession'    : '${argv.AuthSession}'
+}
+
 // make sure the json pack directory is there
 fse.ensureDirSync(Conf.PACK_PATH);
 
@@ -83,13 +89,9 @@ fse.ensureDirSync(Conf.PACK_PATH);
 let get = function(url){
   logger.debug(`GET ${url}`);
   return new Promise(function(resolve, reject){
+    logger.info("AUTH_JSON_HEADERS: " + AUTH_JSON_HEADERS)
     unirest.get(url)
-      .auth({
-        user: Settings.T_ADMIN,
-        pass: Settings.T_PASS,
-        sendImmediately: true
-      })
-      .headers(JSON_HEADERS)
+      .headers(AUTH_JSON_HEADERS)
       .end(function(res){
         if ( res.code >= 400 ) {
           return reject({code: res.code, msg: `${url} ${res.raw_body}`});
