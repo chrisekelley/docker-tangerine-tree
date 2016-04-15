@@ -18,9 +18,8 @@ const HttpStatus = require('http-status-codes');
 
 const app = express();
 
-
 // parse requests with json bodies
-app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 // use cookies
 app.use(cookieParser());

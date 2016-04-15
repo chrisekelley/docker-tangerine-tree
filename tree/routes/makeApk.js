@@ -23,6 +23,21 @@ const del = require('del');
 // for standard http responses
 const HttpStatus = require('http-status-codes');
 
+// for Path.join
+let Path = require('path');
+
+/** Configuration. */
+// let Conf = {};
+
+// how many documents will be put into a pack at most.
+Object.defineProperty(Conf, "PACK_DOC_SIZE", {value: 50, writeable: false, configurable: false, enumerable: true});
+
+// Where the json docs will go
+Object.defineProperty(Conf, "PACK_PATH", {value: `${__dirname}/../client/src/js/init`, writeable: false, configurable: false, enumerable: true})
+
+/** Handle environment variables. */
+let Settings = require('../client/scripts/Settings.js');
+
 // shell response idiom
 const notOk = function(output, res, status) {
   if (output === undefined) { return; }
@@ -45,9 +60,12 @@ const makeApk = function(req, res) {
   // assert a group name
   const groupNameRaw = req.params.group;
   const hostname = req.params[0];
-  const AuthSession = req.body.AuthSession
-  const user = req.body.user
-  console.log("AuthSession: " + AuthSession + " user: " + user);
+  // console.log("req.body: " + JSON.stringify(req.body))
+  console.log("req.params: " + JSON.stringify(req.params))
+  // const AuthSession = req.body.AuthSession
+  // const user = req.body.user
+  const docs = req.body.docs
+  // console.log("docs: " + JSON.stringify(docs));
   const emptyGroup = !groupNameRaw || groupNameRaw == ''
   if (emptyGroup) {
     return res
@@ -87,28 +105,67 @@ const makeApk = function(req, res) {
 
   // load the json packs
   cd(`${__dirname}/../client`);
-  const preload = exec(`npm run treeload --group=${groupName} --hostname=${hostname} --username=${username} --password=${password}`);
+  console.log("loading the json packs")
+  // const preload = exec(`npm run treeload --group=${groupName} --hostname=${hostname} --docs=JSON.stringify(docs)`);
+
+  let treeload = function (groupName, docs) {
+
+    // Summarize this job
+    logger.info(groupName)
+
+// delete any old packs if they're there
+    del([ Path.join(Conf.PACK_PATH, 'pack*.json') ])
+        .then( function (paths) {
+          if ( paths.length !== 0 ) {
+            logger.debug(`Old json packs deleted: ${paths.map((p)=>p.substring(Conf.PACK_PATH.length)).join(', ')}`);
+          }
+        })
+        .then(function writeDocs(msg) {
+          let fileName = Path.join(Conf.PACK_PATH, `/pack0000.json`);
+          logger.log("logger fileName: " + fileName );
+          console.log("console fileName: " + fileName );
+
+          fs.writeFile(fileName, JSON.stringify(docs), function(err) {
+            if (err) {
+              console.log("Error:" + err.stack)
+              logger.error(err);
+              return process.exit(1);
+            } else {
+              console.log("building the apk for " + groupName);
+
+              // build the apk
+              cd(`${__dirname}/../client`);
+              const buildApk = exec(`npm run build:apk`);
+              if (notOk(buildApk, res, HttpStatus.INTERNAL_SERVER_ERROR)) { return; }
+
+              // Make sure the directory is there
+              cd(Conf.APP_ROOT_PATH);
+              
+              console.log("APK built; moving APK, token: " + token)
+
+              // move the apk to the right directory
+              const moveApk = mv(Conf.APK_PATH, `apks/${token}`);
+              if (notOk(moveApk, res, HttpStatus.INTERNAL_SERVER_ERROR)) { return; }
+
+              // move the x86 apk to the right directory
+              const moveX86Apk = mv(Conf.X86_APK_PATH, `apks/${token}-x86`);
+              if (notOk(moveX86Apk, res, HttpStatus.INTERNAL_SERVER_ERROR)) { return; }
+
+              res.status(HttpStatus.OK).json({
+                token : token
+              });
+            }
+          })
+
+        })
+        .catch(function noGroup(err) {
+          console.log(err.stack)
+          logger.error(err.msg);
+        });
+  }
+  
+  const preload = treeload(groupName, docs)
   if (notOk(preload, res, HttpStatus.INTERNAL_SERVER_ERROR)) { return; }
-
-  // build the apk
-  cd(`${__dirname}/../client`);
-  const buildApk = exec(`npm run build:apk`);
-  if (notOk(buildApk, res, HttpStatus.INTERNAL_SERVER_ERROR)) { return; }
-
-  // Make sure the directory is there
-  cd(Conf.APP_ROOT_PATH);
-
-  // move the apk to the right directory
-  const moveApk = mv(Conf.APK_PATH, `apks/${token}`);
-  if (notOk(moveApk, res, HttpStatus.INTERNAL_SERVER_ERROR)) { return; }
-
-  // move the x86 apk to the right directory
-  const moveX86Apk = mv(Conf.X86_APK_PATH, `apks/${token}-x86`);
-  if (notOk(moveX86Apk, res, HttpStatus.INTERNAL_SERVER_ERROR)) { return; }
-
-  res.status(HttpStatus.OK).json({
-    token : token
-  });
 
 };
 
