@@ -70,6 +70,8 @@ rawrgv.forEach(function(el, i){
 
 const SOURCE_GROUP = `http://${argv.hostname}:${Settings.T_COUCH_PORT}/group-${argv.group}`;
 
+logger.debug("SOURCE_GROUP: " + SOURCE_GROUP);
+
 let JSON_HEADERS = {
   'Accept'       : 'application/json',
   'Content-Type' : 'application/json'
@@ -83,7 +85,7 @@ fse.ensureDirSync(Conf.PACK_PATH);
 let get = function(url){
   logger.debug(`GET ${url}`);
   return new Promise(function(resolve, reject){
-    console.log("argv.username: " = argv.username);
+    console.log('username: ' +  argv.username);
     unirest.get(url)
       .auth({
         user: argv.username,
@@ -141,65 +143,22 @@ del([ Path.join(Conf.PACK_PATH, 'pack*.json') ])
     }
   })
   .then(function checkGroupExistence() {
+    console.log("checking group")
     return get(SOURCE_GROUP);
   })
-  .then(function getIds() {
-    // Get a list of _ids for the assessments not archived
-    return post(urljoin(SOURCE_GROUP, "/_design/ojai/_view/assessmentsNotArchived"))
-  })
-  .then(function getAllDocs(res) {
-    // transform them to dKeys
-    let dKeyQuery = {
-      keys: res.body.rows.map((row) => row.id.substr(-5))
-    };
+  .then(function writeDocs(res) {
 
-    // get a list of docs associated with those assessments
-    return post(urljoin(SOURCE_GROUP, "/_design/ojai/_view/byDKey"), dKeyQuery)
-  })
-  .then(function packLoop(res) {
+    let fileName = Path.join(Conf.PACK_PATH, `/packAllDocs0.json`);
+    let docs = argv.docs;
+    console.log("fileName: " + fileName + " docs: " + JSON.stringify(docs));
 
-    var idList = res.body.rows.map((row) => row.id);
-    idList.push("settings");
-
-    var packIndex = 0;
-    var padding = "0000";
-
-    let doOne = function() {
-      // get X doc ids
-      let ids = idList.splice(0, Conf.PACK_DOC_SIZE);
-
-      // get n docs
-      get(urljoin(SOURCE_GROUP,`/_all_docs?include_docs=true&keys=${JSON.stringify(ids)}`))
-        .then(function(res){
-
-          let fileName = Path.join(Conf.PACK_PATH, `/pack${(padding + packIndex).substr(-4)}.json`);
-          let docs = res.body.rows.map( (row) => row.doc );
-          let body = JSON.stringify({
-            docs: docs
-          });
-
-          fs.writeFile(fileName, body, function(err) {
-            if (err) {
-              console.log(err.stack)
-              logger.error(err);
-              return process.exit(1);
-            }
-
-            let moreDocsAvailable = ids.length !== 0;
-            if (moreDocsAvailable) {
-              packIndex++;
-              return doOne();
-            } else {
-              logger.info(`Done ${packIndex+1} packs written.`);
-              return process.exit(0);
-            }
-          });
-
-        }); // END of get _all_docs
-
-    }; // END of doOne
-
-    doOne();
+    fs.writeFile(fileName, body, function(err) {
+      if (err) {
+        console.log(err.stack)
+        logger.error(err);
+        return process.exit(1);
+      }
+    })
 
   })
   .catch(function noGroup(err) {
