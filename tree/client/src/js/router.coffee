@@ -1,4 +1,22 @@
 class Router extends Backbone.Router
+
+
+  # Set Router.navigateAwayMessage to a string to confirm when a user is navigating
+  # away from their current route. Set it to false to turn off the confirmation.
+  navigateAwayMessage: false
+
+  # Override Backbone.Router.execute
+  execute: (callback, args, name) ->
+    # Implement support for Router.navigateAwayMessage
+    if this.navigateAwayMessage isnt false
+      if !confirm this.navigateAwayMessage
+        return false
+      else
+        this.navigateAwayMessage = false
+        Tangerine.router.landing(true)
+    if (callback)
+      callback.apply(this, args);
+
   routes:
     'login'    : 'login'
     'register' : 'register'
@@ -46,6 +64,7 @@ class Router extends Backbone.Router
     'assessments'        : 'assessments'
 
     'run/:id'       : 'run'
+    'runMar/:id'       : 'runMar'
     'print/:id/:format'       : 'print'
     'dataEntry/:id' : 'dataEntry'
 
@@ -382,8 +401,11 @@ class Router extends Backbone.Router
         assessments = new Assessments
         assessments.fetch
           success: ->
-            vm.show new AssessmentsMenuView
+#            vm.show new AssessmentsMenuView
+#              assessments : assessments
+            assessmentsView = new AssessmentsMenuView
               assessments : assessments
+            Tangerine.app.rm.get('mainRegion').show assessmentsView
 
   restart: (name) ->
     Tangerine.router.navigate "run/#{name}", true
@@ -396,39 +418,50 @@ class Router extends Backbone.Router
           success : ->
             vm.show new AssessmentRunView model: assessment
 
-  resume: (assessmentId, resultId) ->
+  runMar: (id) ->
+    router = this
     Tangerine.user.verify
       isAuthenticated: ->
+        router.navigateAwayMessage = t("Router.message.quit_assessment")
+        assessment = new Assessment "_id" : id
+        assessment.deepFetch
+          success : ->
+            dashboardLayout = new DashboardLayout();
+            Tangerine.app.rm.get('mainRegion').show dashboardLayout
+            dashboardLayout.contentRegion.reset()
+            assessmentCompositeView = new AssessmentCompositeView
+              assessment: assessment
+            dashboardLayout.contentRegion.show(assessmentCompositeView)
+          error: (model, err, cb) ->
+            console.log JSON.stringify err
+
+  resume: (assessmentId, resultId) ->
+    router = this
+    Tangerine.user.verify
+      isAuthenticated: ->
+        router.navigateAwayMessage = t("Router.message.quit_assessment")
         assessment = new Assessment "_id" : assessmentId
         assessment.deepFetch
           success : ->
             result = new Result "_id" : resultId
             result.fetch
               success: ->
-                view = new AssessmentRunView
-                  model: assessment
 
-                if result.has("order_map")
-                  # save the order map of previous randomization
-                  orderMap = result.get("order_map").slice() # clone array
-                  # restore the previous ordermap
-                  view.orderMap = orderMap
+                # Build an AssessmentCompositeView.
+                assessmentCompositeView = new AssessmentCompositeView
+                  assessment: assessment
+                  result: result
 
+                # @todo RJ: Remove. I've seen this required by something...
+                result.parent = assessmentCompositeView
+
+                # Set participant info in the Tangerine Nav.
                 for subtest in result.get("subtestData")
                   if subtest.data? && subtest.data.participant_id?
                     Tangerine.nav.setStudent subtest.data.participant_id
 
-                # replace the view's result with our old one
-                view.result = result
-
-                # Hijack the normal Result and ResultView, use one from the db
-                view.subtestViews.pop()
-                view.subtestViews.push new ResultView
-                  model          : result
-                  assessment     : assessment
-                  assessmentView : view
-                view.index = result.get("subtestData").length
-                vm.show view
+                # Add assessmentCompositeView to the mainRegion.
+                Tangerine.app.rm.get('mainRegion').show assessmentCompositeView
 
 
 
@@ -447,7 +480,8 @@ class Router extends Backbone.Router
                 view = new ResultsView
                   "assessment" : assessment
                   "results"    : allResults
-                vm.show view
+#                vm.show view
+                Tangerine.app.rm.get('mainRegion').show view
 
 
   csv: (id) ->
@@ -697,11 +731,14 @@ class Router extends Backbone.Router
         users = new TabletUsers
         users.fetch
           success: ->
-            vm.show new LoginView
+#            vm.show new LoginView
+#              users: users
+            loginView = new LoginView
               users: users
-
-
-
+#            dashboardLayout = new DashboardLayout();
+            Tangerine.app.rm.get('mainRegion').show loginView
+            loginView.afterRender()
+#            dashboardLayout.contentRegion.show(loginView)
 
   logout: ->
     Tangerine.user.logout()

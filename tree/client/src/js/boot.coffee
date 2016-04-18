@@ -46,7 +46,6 @@ Tangerine.bootSequence =
       callback()
     ###
 
-
   # Check for new database, initialize with packs if none exists
   checkDatabase: (callback) ->
 
@@ -105,12 +104,18 @@ Tangerine.bootSequence =
                 emit "result-#{doc.assessmentId}", result
 
             ).toString()
+
       ).then ->
 
-
+        #
+        # Load Packs that Tree creates for an APK, then load the Packs we use for
+        # development purposes.
+        #
 
         packNumber = 0
 
+        # Recursive function that will iterate through js/init/pack000[0-x] until
+        # there is no longer a returned pack.
         doOne = ->
 
           paddedPackNumber = ("0000" + packNumber).slice(-4)
@@ -119,8 +124,11 @@ Tangerine.bootSequence =
             dataType: "json"
             url: "js/init/pack#{paddedPackNumber}.json"
             error: (res) ->
+              # No more pack? We're all done here.
               if res.status is 404
-                db.put({"_id":"initialized"}).then( -> callback())
+                # Mark this database as initialized so that this process does not
+                # run again on page refresh, then load Development Packs.
+                db.put({"_id":"initialized"}).then( -> callback() )
             success: (res) ->
               packNumber++
 
@@ -129,15 +137,13 @@ Tangerine.bootSequence =
                   return alert "could not save initialization document: #{error}"
                 doOne()
 
-        doOne() # kick it off
-
+        # kick off recursive process
+        doOne()
 
   # Put this version's information in the footer
   versionTag: ( callback ) ->
     $("#footer").append("<div id='version'>#{Tangerine.version}-#{Tangerine.buildVersion}</div>")
     callback()
-
-
 
   # get our local Tangerine settings
   # these do tend to change depending on the particular install of the
@@ -151,7 +157,6 @@ Tangerine.bootSequence =
             console.error arguments
             alert "Could not save default settings"
           success: callback
-
 
   # for upgrades
   guaranteeInstanceId: ( callback ) ->
@@ -172,7 +177,7 @@ Tangerine.bootSequence =
 
   loadI18n: ( callback ) ->
     i18n.init
-      fallbackLng : false
+      fallbackLng : "en-US"
       lng         : Tangerine.settings.get("language")
       resStore    : Tangerine.locales
     , (err, t) ->
@@ -199,7 +204,82 @@ Tangerine.bootSequence =
 
       , false
 
-    # add the event listeners, but don't depend on them calling back
+# add the event listeners, but don't depend on them calling back
+
+    # Load cordova.js if we are in a cordova context
+    if(navigator.userAgent.match(/(iPhone|iPod|iPad|Android|BlackBerry|IEMobile)/))
+      console.log("loading cordova methods")
+#      xhrObj =  new XMLHttpRequest()
+      try
+#        xhrObj.open('GET', 'cordova.js', false)
+#        xhrObj.send('')
+#        se = document.createElement('script')
+#        se.text = xhrObj.responseText
+#        document.getElementsByTagName('head')[0].appendChild(se)
+
+        #  /*
+        # * Attach a writeTextToFile method to cordova.file API.
+        # *
+        # * params = {
+        # *  text: 'Text to go into the file.',
+        # *  path: 'file://path/to/directory',
+        #*  fileName: 'name-of-the-file.txt',
+        #*  append: false
+        #* }
+        #*
+        #* callback = {
+        #*   success: function(file) {},
+        #*   error: function(error) {}
+        #* }
+        #*
+        #*/
+        cordova.file.writeTextToFile = (params, callback) ->
+          window.resolveLocalFileSystemURL(params.path, (dir) ->
+            dir.getFile(params.fileName, {create:true}, (file) ->
+              if (!file)
+                return callback.error('dir.getFile failed')
+              file.createWriter(
+                (fileWriter) ->
+                  if params.append == true
+                    fileWriter.seek(fileWriter.length)
+                  blob = new Blob([params.text], {type:'text/plain'})
+                  fileWriter.write(blob)
+                  callback.success(file)
+              ,(error) ->
+                callback.error(error)
+              )
+            )
+          )
+
+        #/*
+        # * Use the writeTextToFile method.
+        # */
+        Utils.saveRecordsToFile = (text) ->
+          username = Tangerine.user.name()
+          timestamp = (new Date).toISOString();
+          timestamp = timestamp.replace(/:/g, "-")
+          if username == null
+            fileName = "backup-" + timestamp + ".json"
+          else
+            fileName = username + "-backup-" + timestamp + ".json"
+          console.log("fileName: " + fileName)
+          cordova.file.writeTextToFile({
+            text:  text,
+            path: cordova.file.externalDataDirectory,
+            fileName: fileName,
+            append: false
+            },
+            {
+              success: (file) ->
+                alert("Success! Look for the file at " + file.nativeURL)
+                console.log("File saved at " + file.nativeURL)
+              , error: (error) ->
+                  console.log(error)
+            }
+          )
+
+      catch error
+        console.log("Unable to fetch script. Error: " + error)
     callback()
 
   loadSingletons: ( callback ) ->
@@ -212,6 +292,14 @@ Tangerine.bootSequence =
       router : Tangerine.router
     Tangerine.log    = new Log()
     Tangerine.session = new Session()
+
+    #  init  Tangerine as a Marionette app
+    Tangerine.app = new Marionette.Application()
+    Tangerine.app.rm = new Marionette.RegionManager();
+
+    Tangerine.app.rm.addRegions siteNav: "#siteNav"
+    Tangerine.app.rm.addRegions mainRegion: "#content"
+    Tangerine.app.rm.addRegions dashboardRegion: "#dashboard"
     callback()
 
   reloadUserSession: ( callback ) ->
@@ -224,10 +312,16 @@ Tangerine.bootSequence =
     Backbone.history.start()
     callback() # for testing
 
+  monitorBrowserBack: ( callback ) ->
+    window.addEventListener('popstate', (e) ->
+      sendTo = Backbone.history.getFragment()
+      Tangerine.router.navigate(sendTo, { trigger: true, replace: true })
+    )
 
 Tangerine.boot = ->
 
   sequence = [
+    Tangerine.bootSequence.handleCordovaEvents
     Tangerine.bootSequence.basicConfig
     Tangerine.bootSequence.checkDatabase
     Tangerine.bootSequence.versionTag
@@ -235,10 +329,10 @@ Tangerine.boot = ->
     Tangerine.bootSequence.guaranteeInstanceId
     Tangerine.bootSequence.documentReady
     Tangerine.bootSequence.loadI18n
-    Tangerine.bootSequence.handleCordovaEvents
     Tangerine.bootSequence.loadSingletons
     Tangerine.bootSequence.reloadUserSession
     Tangerine.bootSequence.startBackbone
+#    Tangerine.bootSequence.monitorBrowserBack
   ]
 
   Utils.execute sequence

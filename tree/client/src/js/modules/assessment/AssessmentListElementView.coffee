@@ -36,7 +36,7 @@ class AssessmentListElementView extends Backbone.View
   blankResultCount: "-"
 
   initialize: (options) ->
-    console.log "list element view render"
+#    console.log "list element view render"
 
     # arguments
     @model    = options.model
@@ -151,15 +151,19 @@ class AssessmentListElementView extends Backbone.View
         </div>
       " + @ul
         cssClass: "assessment_menu"
-        links : ["run","results","update","delete"]
+#        links : ["run","runMar", "results","update","delete"]
+        links : ["runMar", "results","update","delete"]
         other : deleteConfirm
-
-
     else
-      console.log "got here"
+#      console.log "got here"
+#      @$el.html "
+#        <div class='non_admin'>
+#          #{@spriteListLink("span",'run')}#{name} #{@spriteListLink("span",'runMar')}#{name} #{@spriteListLink("span",'results')}
+#        </div>
+#      "
       @$el.html "
         <div class='non_admin'>
-          #{@spriteListLink("span",'run')}#{name} #{@spriteListLink("span",'results')}
+          #{@spriteListLink("span",'runMar')}#{name} #{@spriteListLink("span",'results')}
         </div>
       "
 

@@ -6,9 +6,8 @@
 
 ResultOfQuestion = (name) ->
   returnView = null
-  index = vm.currentView.orderMap[vm.currentView.index]
-
-  vm.currentView.subtestViews[index].prototypeView.questionViews.forEach (candidateView) ->
+#  viewMaster.subtestViews[index].prototypeView.questionViews.forEach (candidateView) ->
+  Tangerine.progress.currentSubview.questionViews.forEach (candidateView) ->
     if candidateView.model.get("name") == name
       returnView = candidateView
   throw new ReferenceError("ResultOfQuestion could not find variable #{name}") if returnView == null
@@ -17,9 +16,8 @@ ResultOfQuestion = (name) ->
 
 ResultOfMultiple = (name) ->
   returnView = null
-  index = vm.currentView.orderMap[vm.currentView.index]
-
-  vm.currentView.subtestViews[index].prototypeView.questionViews.forEach (candidateView) ->
+#  viewMaster.subtestViews[index].prototypeView.questionViews.forEach (candidateView) ->
+  Tangerine.progress.currentSubview.questionViews.forEach (candidateView) ->
     if candidateView.model.get("name") == name
       returnView = candidateView
   throw new ReferenceError("ResultOfQuestion could not find variable #{name}") if returnView == null
@@ -30,16 +28,22 @@ ResultOfMultiple = (name) ->
   return result
 
 ResultOfPrevious = (name) ->
-  return vm.currentView.result.getVariable(name)
+  if typeof vm.currentView.result == 'undefined'
+#    console.log("Using Tangerine.progress.currentSubview")
+    return Tangerine.progress.currentSubview.model.parent.result.getVariable(name)
+  else
+    return vm.currentView.result.getVariable(name)
 
 ResultOfGrid = (name) ->
-  return vm.currentView.result.getItemResultCountByVariableName(name, "correct")
-
-
+  if typeof vm.currentView.result == 'undefined'
+    console.log("Using Tangerine.progress.currentSubview")
+    return Tangerine.progress.currentSubview.model.parent.result.getItemResultCountByVariableName(name, "correct")
+  else
+    return vm.currentView.result.getVariable(name)
 #
 # Tangerine backbutton handler
 #
-Tangerine = if Tangerine? then Tangerine else {}
+$.extend(Tangerine,TangerineVersion)
 Tangerine.onBackButton = (event) ->
   if Tangerine.activity == "assessment run"
     if confirm t("NavigationView.message.incomplete_main_screen")
@@ -202,25 +206,36 @@ class Utils
 
     a = document.createElement("a")
     a.href = Tangerine.settings.get("groupHost")
-    allDocsUrl = "#{a.protocol}//#{a.host}/decompressor/check/#{Tangerine.settings.get('groupName')}"
+    if Tangerine.settings.get("groupHost") == "localhost"
+      allDocsUrl = "http://#{Tangerine.settings.get("groupHost")}/_cors_bulk_docs/check/#{Tangerine.settings.groupDB}"
+    else
+      allDocsUrl = "#{a.protocol}//#{a.host}/_cors_bulk_docs/check/#{Tangerine.settings.groupDB}"
+
+    $("#upload_results").append(t("Utils.message.checkingServer") + '&nbsp' + docList.length + '<br/>')
 
     return $.ajax
       url: allDocsUrl
       type: "POST"
       dataType: "json"
-      contentType: "application/json"
-      data: JSON.stringify
-        keys: docList
+      data:
+        keys: JSON.stringify(docList)
         user: Tangerine.settings.upUser
         pass: Tangerine.settings.upPass
-      error: (a) ->
-        alert "Error connecting"
+      error: (e) ->
+        errorMessage = JSON.stringify e
+        alert "Error connecting" + errorMessage
+        $("#upload_results").append('Error connecting to : ' + allDocsUrl + ' - Error: ' + errorMessage + '<br/>')
       success: (response) =>
-
+        $("#upload_results").append('Received response from server.<br/>')
         rows = response.rows
         leftToUpload = []
         for row in rows
           leftToUpload.push(row.key) if row.error?
+
+        if leftToUpload.length > 0
+          $("#upload_results").append(t("Utils.message.countTabletResults") + '&nbsp' + leftToUpload.length + '<br/>')
+        else
+          $("#upload_results").append(t("Utils.message.noUpload") + '<br/>')
 
         # if it's already fully uploaded
         # make sure it's in the log
@@ -231,17 +246,22 @@ class Utils
           compressedData = LZString.compressToBase64(JSON.stringify(docs))
           a = document.createElement("a")
           a.href = Tangerine.settings.get("groupHost")
-          bulkDocsUrl = "#{a.protocol}//#{a.host}/decompressor/upload/#{Tangerine.settings.get('groupName')}"
+          if Tangerine.settings.get("groupHost") == "localhost"
+            bulkDocsUrl = "http://#{Tangerine.settings.get("groupHost")}/_cors_bulk_docs/upload/#{Tangerine.settings.groupDB}"
+          else
+            bulkDocsUrl = "#{a.protocol}//#{a.host}/_cors_bulk_docs/upload/#{Tangerine.settings.groupDB}"
 
           $.ajax
             type : "POST"
             url : bulkDocsUrl
-            contentType: 'text/plain'
             data : compressedData
-            error: =>
-              alert "Server bulk docs error"
+            error: (e) =>
+              errorMessage = JSON.stringify e
+              alert "Server bulk docs error" + errorMessage
+              $("#upload_results").append(t("Utils.message.bulkDocsError") + bulkDocsUrl + ' - ' + t("Utils.message.error") + ': ' + errorMessage + '<br/>')
             success: =>
-              Utils.sticky "Results uploaded"
+              Utils.sticky t("Utils.message.resultsUploaded")
+              $("#upload_results").append(t("Utils.message.universalUploadComplete")+ '<br/>')
               return
         )
 
@@ -249,11 +269,19 @@ class Utils
   @universalUpload: ->
     results = new Results
     results.fetch
-      options:
-        key: "result"
       success: ->
         docList = results.pluck("_id")
         Utils.uploadCompressed(docList)
+
+  @saveDocListToFile: ->
+#    Tangerine.db.allDocs(include_docs:true).then( (response) ->
+#      Utils.saveRecordsToFile(JSON.stringify(response))
+#    )
+    results = new Results
+    results.fetch
+      success: ->
+#        console.log("results: " + JSON.stringify(results))
+        Utils.saveRecordsToFile(JSON.stringify(results))
 
   @checkSession: (url, options) ->
     options = options || {};
@@ -276,6 +304,79 @@ class Utils
           options.error(req.status, resp.error, resp.reason);
         else
           alert("An error occurred getting session info: " + resp.reason)
+
+#  @startReplication =  () ->
+#    credentials = account.username + ":" + account.password;
+#    couchdb =  "troubletickets_" +  account.site;
+#    subdomain =  "ug" +  account.site;
+#    remoteCouch = "http://" + credentials + "@localhost:5984/" + couchdb + "/";
+#    a = document.createElement("a")
+#    a.href = Tangerine.settings.get("groupHost")
+#    bulkDocsUrl = "#{a.protocol}//#{a.host}/#{Tangerine.settings.groupDB}"
+#    console.log("start replication with " + remoteCouch)
+#    opts = {continuous: false,
+#      withCredentials:true,
+#    #//cookieAuth: {username:account.username, password:account.password},
+#    auth: {username:account.username, password:account.password},
+#    complete: CoconutUtils.onComplete,
+#    timeout: 60000};
+#    Backbone.sync.defaults.db.replicate.to(remoteCouch, opts, CoconutUtils.ReplicationErrorLog);
+
+  @cloud_url_with_credentials: (cloud_url)->
+    cloud_credentials = "username:password"
+    cloud_url.replace(/http:\/\//,"http://#{cloud_credentials}@")
+
+  @replicateToServer: (options, divId) ->
+    options = {} if !options
+    opts =
+#      live:true
+      continuous: false
+#      batch_size:5
+#      filter: filter
+#      batches_limit:1
+      withCredentials:true
+#      auth:
+#        username:account.username
+#        password:account.password
+      complete: (result) ->
+        if typeof result != 'undefined' && result != null && result.ok
+          console.log "replicateToServer - onComplete: Replication is fine. "
+        else
+          console.log "replicateToServer - onComplete: Replication message: " + result
+      error: (result) ->
+        console.log "error: Replication error: " + JSON.stringify result
+      timeout: 60000
+    _.extend options, opts
+
+    a = document.createElement("a")
+    a.href = Tangerine.settings.get("groupHost")
+    replicationURL = "#{a.protocol}//#{a.host}/#{Tangerine.settings.groupDB}"
+    credRepliUrl = @cloud_url_with_credentials(replicationURL)
+    console.log("credRepliUrl: " + credRepliUrl)
+    Backbone.sync.defaults.db.replicate.to(credRepliUrl, options).on('uptodate', (result) ->
+      if typeof result != 'undefined' && result.ok
+        console.log "uptodate: Replication is fine. "
+        options.complete()
+        if typeof options.success != 'undefined'
+          options.success()
+      else
+        console.log "uptodate: Replication error: " + JSON.stringify result).on('change', (info)->
+      console.log "Change: " + JSON.stringify info
+      doc_count = options.status?.doc_count
+      doc_del_count = options.status?.doc_del_count
+      total_docs = doc_count? + doc_del_count?
+      doc_written = info.docs_written
+      percentDone = Math.floor((doc_written/total_docs) * 100)
+      if !isNaN  percentDone
+        msg = "Change: docs_written: " + doc_written + " of " +  total_docs + ". Percent Done: " + percentDone + "%<br/>"
+      else
+        msg = "Change: docs_written: " + doc_written + "<br/>"
+      console.log("msg: " + msg)
+      $(divId).append msg
+    ).on('complete', (info)->
+      console.log "Complete: " + JSON.stringify info
+    )
+#    Coconut.menuView.checkReplicationStatus();
 
   @restartTangerine: (message, callback) ->
     Utils.midAlert "#{message || 'Restarting Tangerine'}"
@@ -545,6 +646,17 @@ class Utils
               doc_ids: docList
           )
 
+  @loadDevelopmentPacks: (callback) ->
+    $.ajax
+      dataType: "json"
+      url: "packs.json"
+      error: (res) ->
+        callback(res)
+      success: (res) ->
+        Tangerine.db.bulkDocs res, (error, doc) ->
+          if error then callback(error) else callback()
+
+
 
 
 # Robbert interface
@@ -616,3 +728,63 @@ $ ->
 
   # $(window).resize Utils.resizeScrollPane
   # Utils.resizeScrollPane()
+
+# Handlebars partials
+Handlebars.registerHelper('gridLabel', (items,itemMap,index) ->
+#  _.escape(items[itemMap[done]])
+  _.escape(items[itemMap[index]])
+)
+Handlebars.registerHelper('startRow', (index) ->
+  console.log("index: " + index)
+  if index == 0
+    "<tr>"
+)
+Handlebars.registerHelper('endRow', (index) ->
+  console.log("index: " + index)
+  if index == 0
+    "</tr>"
+)
+
+Handlebars.registerHelper('startCell', (index) ->
+  console.log("index: " + index)
+  if index == 0
+    "<td></td>"
+)
+
+#/*
+#   * Use this to turn on logging:
+#   */
+Handlebars.logger.log = (level)->
+  if  level >= Handlebars.logger.level
+    console.log.apply(console, [].concat(["Handlebars: "], _.toArray(arguments)))
+
+##// DEBUG: 0, INFO: 1, WARN: 2, ERROR: 3,
+Handlebars.registerHelper('log', Handlebars.logger.log);
+##// Std level is 3, when set to 0, handlebars will log all compilation results
+Handlebars.logger.level = 3;
+
+#/*
+#   * Log can also be used in templates: '{{log 0 this "myString" accountName}}'
+#   * Logs all the passed data when logger.level = 0
+#   */
+
+Handlebars.registerHelper("debug", (optionalValue)->
+  console.log("Current Context")
+  console.log("====================")
+  console.log(this)
+
+  if optionalValue
+    console.log("Value")
+    console.log("====================")
+    console.log(optionalValue)
+)
+
+Handlebars.registerHelper('monthDropdown', (months, currentMonth)->
+  renderOption = (month, currentMonth)->
+    out = "<option value='" + month + "'"
+    if month == currentMonth
+      out = out + "selected='selected'"
+    out = out +  ">" + month.titleize() + "</option>"
+    return out
+  renderOption(month, currentMonth) for month in months
+)

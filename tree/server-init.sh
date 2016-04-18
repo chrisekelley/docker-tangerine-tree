@@ -39,7 +39,9 @@ else
   sudo sh -c "echo \"export PATH=$PATH:/usr/local/bin/android-sdk-linux/tools:/usr/local/bin/android-sdk-linux/build-tools \nexport ANDROID_HOME=/usr/local/bin/android-sdk-linux\" > /etc/profile.d/android-sdk-path.sh"
 
   # Install Android SDK's tools
-  echo "y" | /usr/local/bin/android-sdk-linux/tools/android update sdk -u -a --force -t "android-22,tools,platform-tools,build-tools-23.0.2"
+  echo "y" | /usr/local/bin/android-sdk-linux/tools/android update sdk -u -a --force -t "android-22,tools,platform-tools,extra-android-support,extra-android-m2repository,extra-google-m2repository, build-tools-23.0.2"
+#  android update sdk --no-ui --filter platform-tools,build-tools-19.0.1,android-19,extra-android-support,extra-android-m2repository,extra-google-m2repository
+
 
   # required on 64-bit ubuntu
   sudo dpkg --add-architecture i386

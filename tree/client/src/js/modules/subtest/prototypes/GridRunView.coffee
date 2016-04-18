@@ -15,7 +15,7 @@ class GridRunView extends Backbone.View
     'click .stop_time'        : 'stopTimer'
     'click .restart'          : 'restartTimer'
   }
-  
+
   restartTimer: ->
     @stopTimer(simpleStop:true) if @timeRunning
 
@@ -34,7 +34,7 @@ class GridRunView extends Backbone.View
     indexIsntBelowLastAttempted = parseInt(index) > parseInt(@lastAttempted)
     lastAttemptedIsntZero       = parseInt(@lastAttempted) != 0
     correctionsDisabled         = @dataEntry is false and @parent?.parent?.enableCorrections is false
-    
+
     return if correctionsDisabled && lastAttemptedIsntZero && indexIsntBelowLastAttempted
 
     @markElement(index)
@@ -48,7 +48,7 @@ class GridRunView extends Backbone.View
     @itemAtTime = index
     $target.addClass "element_minute"
     @updateMode "mark"
-    
+
 
   checkAutostop: ->
     if @timeRunning
@@ -63,7 +63,7 @@ class GridRunView extends Backbone.View
         # mode is used for operations like pre-populating the grid when doing corrections.
   markElement: (index, value = null, mode) ->
     # if last attempted has been set, and the click is above it, then cancel
-    
+
     correctionsDisabled         = @dataEntry is false and @parent?.parent?.enableCorrections? and @parent?.parent?.enableCorrections is false
     lastAttemptedIsntZero       = parseInt(@lastAttempted) != 0
     indexIsntBelowLastAttempted = parseInt(index) > parseInt(@lastAttempted)
@@ -118,14 +118,40 @@ class GridRunView extends Backbone.View
       $target.addClass "element_last"
       @lastAttempted = index
 
+  floatOn: ->
+    timer = @$el.find('.timer')
+    timerPos = timer.offset()
+    $(window).on 'scroll', ->
+      scrollPos = $(window).scrollTop()
+      if scrollPos >= timerPos.top
+        timer.css
+          position: "fixed"
+          top: "10%"
+          left: "80%"
+      else
+        timer.css
+          position: "initial"
+          top: "initial"
+          left: "initial"
+
+  floatOff: ->
+    $(window).off 'scroll'
+    timer = @$el.find('.timer')
+    timer.css
+      position: "initial"
+      top: "initial"
+      left: "initial"
+
   startTimer: ->
     if @timerStopped == false && @timeRunning == false
+
       @interval = setInterval( @updateCountdown, 1000 ) # magic number
       @startTime = @getTime()
       @timeRunning = true
       @updateMode "mark"
       @enableGrid()
       @updateCountdown()
+      @floatOn()
 
   enableGrid: ->
     @$el.find("table.disabled, div.disabled").removeClass("disabled")
@@ -142,7 +168,7 @@ class GridRunView extends Backbone.View
     @stopTime = @getTime()
     @timeRunning = false
     @timerStopped = true
-
+    @floatOff()
     @updateCountdown()
 
     # do these if it's not a simple stop
@@ -185,7 +211,7 @@ class GridRunView extends Backbone.View
 
     @$el.find(".timer").html @timeRemaining
 
-    if @timeRunning is true and @captureLastAttempted and @timeRemaining <= 0 
+    if @timeRunning is true and @captureLastAttempted and @timeRemaining <= 0
         @stopTimer(simpleStop:true)
         Utils.background "red"
         _.delay(
@@ -249,7 +275,7 @@ class GridRunView extends Backbone.View
 
     @itemMap = []
     @mapItem = []
-    
+
     if @model.has("randomize") && @model.get("randomize")
       @itemMap = @items.map (value, i) -> i
 
@@ -259,12 +285,12 @@ class GridRunView extends Backbone.View
         @itemMap[temp] = @itemMap[i]
         @itemMap[i] = tempValue
       , @
-      
+
       @itemMap.forEach (item, i) ->
         @mapItem[@itemMap[i]] = i
       , @
     else
-      @items.forEach (item, i) -> 
+      @items.forEach (item, i) ->
         @itemMap[i] = i
         @mapItem[i] = i
       , @
@@ -300,11 +326,11 @@ class GridRunView extends Backbone.View
         @lastAttempted            = previous.attempted
         @timeRemaining            = previous.time_remain
         @markRecord               = previous.mark_record
-      
+
     @updateMode @mode if @modeButton?
 
   i18n: ->
-    
+
     @text =
       autostop           : t("GridRunView.message.autostop")
       touchLastItem      : t("GridRunView.message.touch_last_item")
@@ -325,7 +351,7 @@ class GridRunView extends Backbone.View
 
     @i18n()
 
-    @fontStyle = "style=\"font-family: #{@model.get('fontFamily')} !important;\"" if @model.get("fontFamily") != "" 
+    @fontStyle = "style=\"font-family: #{@model.get('fontFamily')} !important;\"" if @model.get("fontFamily") != ""
 
     @captureAfterSeconds  = if @model.has("captureAfterSeconds")  then @model.get("captureAfterSeconds")  else 0
     @captureItemAtTime    = if @model.has("captureItemAtTime")    then @model.get("captureItemAtTime")    else false
@@ -341,7 +367,7 @@ class GridRunView extends Backbone.View
       fontSizeClass = ""
 
     @rtl = @model.getBoolean "rtl"
-    @$el.addClass "rtl-grid" if @rtl 
+    @$el.addClass "rtl-grid" if @rtl
 
     @totalTime = @model.get("timer") || 0
 
@@ -407,7 +433,7 @@ class GridRunView extends Backbone.View
           "i"     : i+1
       gridHTML += "</div>"
     html += gridHTML
-    stopTimerHTML = "<div class='timer_wrapper'><button class='stop_time time'>#{@text.stop}</button><div class='timer'>#{@timer}</div></div>"
+    stopTimerHTML = "<div class='timer_wrapper'><button class='stop_time time'>#{@text.stop}</button></div>"
 
     resetButton = "
       <div>
@@ -445,7 +471,7 @@ class GridRunView extends Backbone.View
       } if @captureLastAttempted
 
       @modeButton = new ButtonView buttonConfig
-      @listenTo @modeButton, "change click", => @updateMode()
+      @listenTo @modeButton, "change click", @updateMode
       modeSelector = "
         <div class='grid_mode_wrapper question clearfix'>
           <label>#{@text.inputMode}</label><br>
@@ -503,7 +529,7 @@ class GridRunView extends Backbone.View
     @stopTimer() if @timeRunning
 
     if parseInt(@lastAttempted) is @items.length and @timeRemaining is 0
-      
+
       item = @items[@items.length-1]
       if confirm(t("GridRunView.message.last_item_confirm", item:item))
         @updateMode
@@ -545,7 +571,7 @@ class GridRunView extends Backbone.View
     @lastAttempted = @items.length if not @captureLastAttempted
 
     for item, i in @items
-      
+
       if @mapItem[i] < @lastAttempted
         itemResults[i] =
           itemResult : @gridOutput[@mapItem[i]]

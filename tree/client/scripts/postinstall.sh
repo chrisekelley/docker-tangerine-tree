@@ -14,4 +14,4 @@ $cordova plugin add cordova-plugin-crosswalk-webview
 # whitelist to allow ajax calls to servers specified in config.xml
 $cordova plugin add cordova-plugin-whitelist
 
-npm run start init
+npm run gulp init
