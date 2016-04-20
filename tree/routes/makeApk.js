@@ -148,8 +148,8 @@ const makeApk = function(req, res) {
               if (notOk(moveApk, res, HttpStatus.INTERNAL_SERVER_ERROR)) { return; }
 
               // move the x86 apk to the right directory
-              const moveX86Apk = mv(Conf.X86_APK_PATH, `apks/${token}-x86`);
-              if (notOk(moveX86Apk, res, HttpStatus.INTERNAL_SERVER_ERROR)) { return; }
+              // const moveX86Apk = mv(Conf.X86_APK_PATH, `apks/${token}-x86`);
+              // if (notOk(moveX86Apk, res, HttpStatus.INTERNAL_SERVER_ERROR)) { return; }
 
               res.status(HttpStatus.OK).json({
                 token : token

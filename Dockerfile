@@ -56,35 +56,67 @@ RUN cp /root/Tangerine-tree/tangerine-env-vars.sh /etc/profile.d/
 # get top to work
 RUN echo -e "\nexport TERM=xterm" >> ~/.bashrc
 
-RUN npm install $NPM_PROXY -g pm2
+#RUN npm install $NPM_PROXY -g pm2
+RUN npm install -g pm2
 
 # Install jdk7
 # RUN apt-get -y install oracle-java7-installer
 RUN apt-get update && apt-get -y install default-jdk
 
 # Install android sdk
-RUN curl http://dl.google.com/android/android-sdk_r24.3.4-linux.tgz > tmp/android-sdk.tgz
-RUN mkdir /usr/local/bin/android-sdk-linux
-RUN tar xvf tmp/android-sdk.tgz -C /usr/local/bin
-RUN chown -R root:root /usr/local/bin/android-sdk-linux
-RUN chmod a+x /usr/local/bin/android-sdk-linux/tools/android
-ENV PATH ${PATH}:/usr/local/bin/android-sdk-linux/tools:/usr/local/bin/android-sdk-linux/build-tools
-RUN sh -c "echo \"export PATH=$PATH:/usr/local/bin/android-sdk-linux/tools:/usr/local/bin/android-sdk-linux/build-tools \nexport ANDROID_HOME=/usr/local/bin/android-sdk-linux\" > /etc/profile.d/android-sdk-path.sh"
-RUN cd /usr/local/bin/android-sdk-linux/tools/ && echo y | /usr/local/bin/android-sdk-linux/tools/android update sdk -u -a --force -t "tools"
-RUN cd /usr/local/bin/android-sdk-linux/tools/ && echo y | /usr/local/bin/android-sdk-linux/tools/android update sdk -u -a --force -t "platform-tools"
-RUN cd /usr/local/bin/android-sdk-linux/tools/ && echo y | /usr/local/bin/android-sdk-linux/tools/android update sdk -u -a --force -t "android-22,build-tools-23.0.2"
+#RUN curl http://dl.google.com/android/android-sdk_r24.3.4-linux.tgz > tmp/android-sdk.tgz
+#RUN mkdir /usr/local/bin/android-sdk-linux
+#RUN tar xvf tmp/android-sdk.tgz -C /usr/local/bin
+#RUN chown -R root:root /usr/local/bin/android-sdk-linux
+#RUN chmod a+x /usr/local/bin/android-sdk-linux/tools/android
+#ENV PATH ${PATH}:/usr/local/bin/android-sdk-linux/tools:/usr/local/bin/android-sdk-linux/build-tools
+#RUN sh -c "echo \"export PATH=$PATH:/usr/local/bin/android-sdk-linux/tools:/usr/local/bin/android-sdk-linux/build-tools \nexport ANDROID_HOME=/usr/local/bin/android-sdk-linux\" > /etc/profile.d/android-sdk-path.sh"
+#RUN cd /usr/local/bin/android-sdk-linux/tools/ && echo y | /usr/local/bin/android-sdk-linux/tools/android update sdk -u -a --force -t "tools"
+#RUN cd /usr/local/bin/android-sdk-linux/tools/ && echo y | /usr/local/bin/android-sdk-linux/tools/android update sdk -u -a --force -t "platform-tools"
+#RUN cd /usr/local/bin/android-sdk-linux/tools/ && echo y | /usr/local/bin/android-sdk-linux/tools/android update sdk -u -a --force -t "android-22,build-tools-23.0.2"
+
+# Installs Android SDK
+ENV ANDROID_SDK_FILENAME android-sdk_r24.4.1-linux.tgz
+ENV ANDROID_SDK_URL http://dl.google.com/android/${ANDROID_SDK_FILENAME}
+ENV ANDROID_API_LEVELS android-15,android-16,android-17,android-18,android-19,android-20,android-21,android-22,android-23
+ENV ANDROID_BUILD_TOOLS_VERSION 23.0.3
+ENV ANDROID_HOME /opt/android-sdk-linux
+ENV PATH ${PATH}:${ANDROID_HOME}/tools:${ANDROID_HOME}/platform-tools
+RUN cd /opt && \
+    wget -q ${ANDROID_SDK_URL} && \
+    tar -xzf ${ANDROID_SDK_FILENAME} && \
+    rm ${ANDROID_SDK_FILENAME} && \
+    echo y | android update sdk --no-ui -a --filter tools,platform-tools,${ANDROID_API_LEVELS},build-tools-${ANDROID_BUILD_TOOLS_VERSION}
+
+RUN echo y | android update sdk --no-ui --all --filter 137
 
 # Installs i386 architecture required for running 32 bit Android tools
-RUN dpkg --add-architecture i386 && \
-    apt-get update -y && \
-    apt-get install -y \
-    libc6:i386 \
-    libncurses5:i386 \
-    libstdc++6:i386 \
-    lib32z1 && \
-    rm -rf /var/lib/apt/lists/* && \
-    apt-get autoremove -y && \
-    apt-get clean
+#RUN dpkg --add-architecture i386 && \
+#    apt-get update -y && \
+#    apt-get install -y \
+#    libc6:i386 \
+#    libncurses5:i386 \
+#    libstdc++6:i386 \
+#    lib32z1 && \
+#    rm -rf /var/lib/apt/lists/* && \
+#    apt-get autoremove -y && \
+#    apt-get clean
+
+# Installs Cordova
+# Forces a platform add in order to preload libraries
+
+RUN npm update && \
+    npm install -g npm && \
+    npm install -g cordova && \
+    cd /tmp && \
+    cordova create fakeapp && \
+    cd /tmp/fakeapp && \
+    cordova platform add android && \
+    cordova plugin add cordova-plugin-crosswalk-webview && \
+    cordova build android && \
+    cd
+#    cd && \
+#    rm -rf /tmp/fakeapp
 
 RUN /root/Tangerine-tree/tree/server-init.sh
 
