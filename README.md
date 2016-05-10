@@ -42,4 +42,18 @@ Is the container crashing on start so the above isn't working? Override the entr
 ```
 docker run -it --entrypoint=/bin/bash tangerine/docker-tangerine-tree
 ```
+
+# Configuring the client app
+
+If you are running tree on your own server, you must configure the relevant urls in the Content-Security-Policy section of index.html:
+
+````
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src *;
+          style-src 'self' 'unsafe-inline';
+          script-src 'self' https://*.tangerinecentral.org 'unsafe-inline' 'unsafe-eval' ;
+          img-src 'self' data:;
+          connect-src 'self' https://*.tangerinecentral.org data: blob: filesystem:">
+````
+
 Happy coding!
