@@ -15,6 +15,7 @@
     "testInBrowser": "http-server ./ -p 9000 --silent",
     "install:apk": "cd scripts && ./install.sh",
     "preload": "scripts/preload.js",
+    "treeload": "scripts/treeload.js",
     "start": "gulp",
     "gulp": "gulp",
     "debug": "gulp index-dev & gulp default",
