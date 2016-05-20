@@ -19,7 +19,7 @@ const HttpStatus = require('http-status-codes');
 const app = express();
 
 // parse requests with json bodies
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true, parameterLimit:50000 }));
 
 // use cookies
 app.use(cookieParser());
