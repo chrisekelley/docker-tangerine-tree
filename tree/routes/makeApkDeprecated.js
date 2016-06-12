@@ -107,4 +107,4 @@ const makeApkDeprecated = function(req, res) {
 
 };
 
-module.exports = makeApk;
+module.exports = makeApkDeprecated;
